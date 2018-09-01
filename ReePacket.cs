@@ -41,8 +41,8 @@ namespace ReeCode
         public ushort PacketLength;
 
         // Useful stuff
-        public byte[] DataBytes;
-        public string DataBytesText;
+        public byte[] Payload;
+        public string PayloadText;
 
         public ReePacket(byte[] b)
         {
@@ -58,7 +58,7 @@ namespace ReeCode
             DestIP = b[16] + "." + b[17] + "." + b[18] + "." + b[19];
             if (ProtocolNum == (int)ProtocolType.Icmp) // 1
             {
-                throw new NotImplementedException("ICMP has not been implemented yet :/");
+                // throw new NotImplementedException("ICMP has not been implemented yet :/");
             }
             else if (ProtocolNum == (int)ProtocolType.Tcp) // 6
             {
@@ -76,12 +76,12 @@ namespace ReeCode
                 // To Fix
                 PacketLength = 256;
 
-                DataBytes = new byte[PacketLength];
+                Payload = new byte[PacketLength];
                 for (int j = 0; j < PacketLength; j++)
                 {
-                    DataBytes[j] = b[56 + j]; // 56 since the previous data is headers
+                    Payload[j] = b[56 + j]; // 56 since the previous data is headers
                 }
-                DataBytesText = string.Join(" ", DataBytes);
+                PayloadText = string.Join(" ", Payload);
             }
 
             else if (ProtocolNum == (int)ProtocolType.Udp) // 17
@@ -89,16 +89,19 @@ namespace ReeCode
                 // https://en.wikipedia.org/wiki/User_Datagram_Protocol
                 SourcePort = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 20))); // b[20] + b[21]
                 DestPort = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 22))); // b[22] + b[23]
+                // UDP Packet Length
                 PacketLength = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 2))); // b[24] + b[25]
+                // Checksum = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 26))); // b[26] + b[27]
 
+                PacketLength -= 8;
                 // Custom
-                DataBytes = new byte[PacketLength];
+                Payload = new byte[PacketLength]; // The first 8 bytes are just data
                 for (int j = 0; j < PacketLength; j++)
                 {
-                    DataBytes[j] = b[26 + j]; // 26 since the previous data is headers
+                    Payload[j] = b[28 + j]; // 28 since the previous data 
                 }
 
-                DataBytesText = string.Join(" ", DataBytes);
+                PayloadText = string.Join(" ", Payload);
             }
         }
 
