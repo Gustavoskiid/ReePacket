@@ -11,7 +11,11 @@ namespace ReeCode
 {
     class PhotonPacketParser
     {
-		// Thanks to https://github.com/rafalfigura for the majority of this class
+        public event EventHandler<OperationRequestEventArgs> OperationRequest;
+        public event EventHandler<OperationResponseEventArgs> OperationResponse;
+        public event EventHandler<EventDataEventArgs> EventData;
+
+        // Thanks to https://github.com/rafalfigura for the majority of this class
         public void ParsePacket(byte[] photonPacket)
         {
             Protocol16 protocol16 = new Protocol16();
@@ -53,16 +57,26 @@ namespace ReeCode
                         switch (messageType)
                         {
                             case 2: // OperationRequest
-                                   var requestData = protocol16.DeserializeOperationRequest(payload);
-                                   ProcessRequestData(requestData.OperationCode, requestData.Parameters);
+                                var requestData = protocol16.DeserializeOperationRequest(payload);
+                                OperationRequestEventArgs requestArgs = new OperationRequestEventArgs();
+                                requestArgs.OperationCode = requestData.OperationCode;
+                                requestArgs.Parameters = requestData.Parameters;
+                                OnOperationRequest(requestArgs);
                                 break;
                             case 3: // OperationResponse
                                 var responseData = protocol16.DeserializeOperationResponse(payload);
-                                ProcessResponseData(responseData.OperationCode, responseData.ReturnCode, responseData.Parameters);
+                                OperationResponseEventArgs responseArgs = new OperationResponseEventArgs();
+                                responseArgs.OperationCode = responseData.OperationCode;
+                                responseArgs.ReturnCode = responseData.ReturnCode;
+                                responseArgs.Parameters = responseData.Parameters;
+                                OnOperationResponse(responseArgs);
                                 break;
                             case 4: // EventData
                                 var eventData = protocol16.DeserializeEventData(payload);
-                                ProcessEventData(eventData.Code, eventData.Parameters);
+                                EventDataEventArgs dataArgs = new EventDataEventArgs();
+                                dataArgs.Code = eventData.Code;
+                                dataArgs.Parameters = eventData.Parameters;
+                                OnEventData(dataArgs);
                                 break;
                             default:
                                 reader.BaseStream.Position += operationLength;
@@ -77,19 +91,50 @@ namespace ReeCode
             }
         }
 
-        public void ProcessRequestData(byte opCode, Dictionary<byte, object> parameters)
+        protected virtual void OnOperationRequest(OperationRequestEventArgs e)
         {
-            // Place handler code here
+            EventHandler<OperationRequestEventArgs> handler = OperationRequest;
+            if (handler != null)
+            {
+                handler(this, e);
+            }
         }
 
-        public void ProcessEventData(byte code, Dictionary<byte, object> parameters)
+        protected virtual void OnOperationResponse(OperationResponseEventArgs e)
         {
-            // Place handler code here - This is probably the one you want
+            EventHandler<OperationResponseEventArgs> handler = OperationResponse;
+            if (handler != null)
+            {
+                handler(this, e);
+            }
         }
 
-        public void ProcessResponseData(byte opCode, short returnCode, Dictionary<byte, object> parameters)
+        protected virtual void OnEventData(EventDataEventArgs e)
         {
-            // Place handler code here
+            EventHandler<EventDataEventArgs> handler = EventData;
+            if (handler != null)
+            {
+                handler(this, e);
+            }
         }
+    }
+
+    public class OperationRequestEventArgs : EventArgs
+    {
+        public byte OperationCode { get; set; }
+        public Dictionary<byte, object> Parameters;
+    }
+
+    public class OperationResponseEventArgs : EventArgs
+    {
+        public byte OperationCode { get; set; }
+        public short ReturnCode { get; set; }
+        public Dictionary<byte, object> Parameters;
+    }
+
+    public class EventDataEventArgs : EventArgs
+    {
+        public byte Code { get; set; }
+        public Dictionary<byte, object> Parameters;
     }
 }
