@@ -6,6 +6,13 @@ This project is really just a collection of class files that contain a basic imp
 ```cs
 static void Sniff(string ip)
 {
+    // You know from elsewhere that you're dealing with Unity Photon Data
+    // You now need PhotonPacketParser.cs as well as the referenced DLL
+    PhotonPacketParser ppp = new PhotonPacketParser();
+    ppp.EventData += ParsePhotonEventData;
+    // ppp.OperationRequest
+    // ppp.OperationResponse
+    
     // http://msdn.microsoft.com/en-us/library/system.net.sockets.socket.aspx
     Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.IP);
     s.Bind(new IPEndPoint(IPAddress.Parse(ip), 0));
@@ -22,10 +29,8 @@ static void Sniff(string ip)
         #region UDP
         if (p.ProtocolType == ProtocolType.Udp) // UDP
         {
-            // You know from elsewhere that this is Unity Photon Data
-            // You now need PhotonPacketParser.cs as well as the referenced DLL
-            PhotonPacketParser ppp = new PhotonPacketParser();
-            ppp.ParsePacket(p.Payload); // You will need to edit PhotonPacketParser.cs to deal with this stuff
+            // If any relevant data is parsed, it will be caught by the 3 event handlers assigned above
+            ppp.ParsePacket(p.Payload);
         }
         
         //clean out our buffer
@@ -38,4 +43,9 @@ static void Sniff(string ip)
     // begin listening to the socket
     s.BeginReceive(byteData, 0, byteData.Length, SocketFlags.None, new AsyncCallback(r), null);
     Console.WriteLine("Listening...");
+}
+
+public static void ParsePhotonEventData(object sender, EventDataEventArgs data)
+{
+    Console.WriteLine(data.Code + " -- " + data.Parameters.Count);
 }
