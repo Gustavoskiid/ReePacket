@@ -11,6 +11,7 @@ namespace ReeCode
 {
     class PhotonPacketParser
     {
+		// Thanks to https://github.com/rafalfigura for the majority of this class
         public void ParsePacket(byte[] photonPacket)
         {
             Protocol16 protocol16 = new Protocol16();
@@ -51,15 +52,15 @@ namespace ReeCode
                         StreamBuffer payload = new StreamBuffer(reader.ReadBytes(operationLength));
                         switch (messageType)
                         {
-                            case 2: // Request
+                            case 2: // OperationRequest
                                    var requestData = protocol16.DeserializeOperationRequest(payload);
                                    ProcessRequestData(requestData.OperationCode, requestData.Parameters);
                                 break;
-                            case 3: // Response
+                            case 3: // OperationResponse
                                 var responseData = protocol16.DeserializeOperationResponse(payload);
                                 ProcessResponseData(responseData.OperationCode, responseData.ReturnCode, responseData.Parameters);
                                 break;
-                            case 4: // Event
+                            case 4: // EventData
                                 var eventData = protocol16.DeserializeEventData(payload);
                                 ProcessEventData(eventData.Code, eventData.Parameters);
                                 break;
