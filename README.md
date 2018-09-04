@@ -47,5 +47,14 @@ static void Sniff(string ip)
 
 public static void ParsePhotonEventData(object sender, EventDataEventArgs data)
 {
-    Console.WriteLine(data.Code + " -- " + data.Parameters.Count);
+    // Albion Online Sample
+    // This code is simply here for a usage example and should be replaced
+    if (data.Code == 2)
+    {
+        // Console.WriteLine("Player Data!");
+        return;
+    }
+    data.Parameters.TryGetValue(252, out object val); // Referenced in Albion.PhotonClient.dll
+    if (val == null) return;
+    Console.WriteLine("Albion Online Event id: " + int.Parse(val.ToString()) + " -- " + data.Parameters.Count);
 }
