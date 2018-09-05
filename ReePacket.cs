@@ -8,6 +8,8 @@ namespace ReeCode
 {
     public class ReePacket
     {
+        int Version;
+        ushort TotalLength;
         int TTL;
         int ProtocolNum = -1;
         public ProtocolType ProtocolType
@@ -36,9 +38,9 @@ namespace ReeCode
         // The protocol determines the rest
         public ushort SourcePort;
         public ushort DestPort;
-        string SequenceNumber = "";
-        string AckNumber = "";
-        public ushort PacketLength;
+        uint SequenceNumber;
+        uint AckNumber;
+        ushort PacketLength;
 
         // Useful stuff
         public byte[] Payload;
@@ -46,9 +48,14 @@ namespace ReeCode
 
         public ReePacket(byte[] b)
         {
+            // https://en.wikipedia.org/wiki/IPv4#Header
+            // b[0]
             // b[0] = Version + IHL (Header Length)
+            Version = b[0] >> 4; // IPv4 or IPv6
+            int IHL = b[0] << 4;
             // b[1] = DSCP + ECN
             // b[2] + b[3] = Total Length
+            TotalLength = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 2)));
             // b[4] + b[5] = Identification
             // b[6] + b[7] = Flags + Fragment Offset
             TTL = b[8];
@@ -65,21 +72,25 @@ namespace ReeCode
                 // https://en.wikipedia.org/wiki/Transmission_Control_Protocol
                 SourcePort = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 20))); // b[20] + b[21]
                 DestPort = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 22))); // b[22] + b[23]
-                SequenceNumber = Convert.ToString(BitConverter.ToInt32(b, 24)); // b[24] + b[25] + b[26] + b[27]
-                AckNumber = Convert.ToString(BitConverter.ToInt32(b, 28)); // b[28] + b[29] + b[30] + b[31]
-                // Data offset + Reserved + Flags (Control Bits) // b[32] + b[33]
-                // Window Size // b[34] + b[35]
-                // Checksum // b[36] + b[37]
-                // Urgent Pointer // b[38] +b[39]
-                // (Variable 0–320 bits, divisible by 32) -- o_O
+                SequenceNumber = (uint)IPAddress.NetworkToHostOrder(BitConverter.ToInt32(b, 24)); // b[24] + b[25] + b[26] + b[27]
+                AckNumber = (uint)IPAddress.NetworkToHostOrder(BitConverter.ToInt32(b, 28)); // b[28] + b[29] + b[30] + b[31]
 
-                // To Fix
-                PacketLength = 256;
+                // Data offset (4 bits) + Reserved (3 bits) + Flags (9 bits Control Bits)
+                ushort DataOffsetAndFlags = (ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 32)); // b[32] + b[33]
+                ushort WindowSize = (ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 34)); // b[34] + b[35]
+                short Checksum = (short)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 336)); // b[36] + b[37]
+                ushort UrgentPointer = (ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 38)); // b[38] +b[39]
+
+                // The length of the data section is not specified in the TCP segment header.
+                // It can be calculated by subtracting the combined length of the TCP header and the encapsulating IP header from the total IP datagram length (specified in the IP header).
+                // Console.WriteLine("Total: " + TotalLength);
+                PacketLength = (ushort)(Convert.ToInt32(TotalLength) - 20); // TCP Header is  20 long (20 -> 40)
+                // (Variable 0–320 bits, divisible by 32) -- o_O
 
                 Payload = new byte[PacketLength];
                 for (int j = 0; j < PacketLength; j++)
                 {
-                    Payload[j] = b[56 + j]; // 56 since the previous data is headers
+                    Payload[j] = b[40 + j]; // First 40 bytes are headers (20 IP + 20 TCP)
                 }
                 PayloadText = string.Join(" ", Payload);
             }
@@ -89,28 +100,26 @@ namespace ReeCode
                 // https://en.wikipedia.org/wiki/User_Datagram_Protocol
                 SourcePort = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 20))); // b[20] + b[21]
                 DestPort = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 22))); // b[22] + b[23]
-                // UDP Packet Length
-                PacketLength = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 2))); // b[24] + b[25]
-                // Checksum = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 26))); // b[26] + b[27]
+                PacketLength = ((ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 24))); // b[24] + b[25]
+                short Checksum = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(b, 26)); // b[26] + b[27]
 
-                PacketLength -= 8;
+                PacketLength -= 8; // PacketLength is header AND Data - We only want data
                 // Custom
                 Payload = new byte[PacketLength]; // The first 8 bytes are just data
                 for (int j = 0; j < PacketLength; j++)
                 {
-                    Payload[j] = b[28 + j]; // 28 since the previous data 
+                    Payload[j] = b[28 + j]; // First 28 bytes are headers (20 IP + 8 UDP)
                 }
 
                 PayloadText = string.Join(" ", Payload);
             }
         }
 
-        public static string BytesToText(string bytes)
+        public static string PayloadToText(byte[] payload)
         {
-            bytes = bytes.Trim();
-            byte[] myList = bytes.Split(' ').Select(byte.Parse).ToArray();
-            string text = Encoding.UTF8.GetString(myList);
+            string text = Encoding.UTF8.GetString(payload);
             return text;
+
         }
     }
 }
